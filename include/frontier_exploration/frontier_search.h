@@ -2,11 +2,19 @@
 #define FRONTIER_SEARCH_H_
 
 #include <costmap_2d/costmap_2d.h>
+#include <geometry_msgs/Point.h>
+#include <ros/ros.h>
+#include <std_msgs/Bool.h>
+#include <mutex>
+#include <vector>
+#include <queue>
+#include <algorithm>
+#include <limits>
+#include <cmath>
 
 namespace frontier_exploration {
     // Represents a frontier
-    struct Frontier
-    {
+    struct Frontier {
         std::uint32_t size; // number of points
         double minDistance; // minimum distance from robot position
         double cost;
@@ -16,11 +24,9 @@ namespace frontier_exploration {
         std::vector<geometry_msgs::Point> points;
     };
 
-    class FrontierSearch
-    {
+    class FrontierSearch {
         // Represents state of a cell in costmap during frontier search
-        enum CellState
-        {
+        enum CellState {
             // Enqueued by outer BFS
             MAP_OPEN,
             // Dequeued by outer BFS
@@ -36,8 +42,7 @@ namespace frontier_exploration {
     public:
         FrontierSearch() = default;
 
-        FrontierSearch(costmap_2d::Costmap2D* costmap, double potentialScale, double gainScale,
-                       double minFrontierSize);
+        FrontierSearch(costmap_2d::Costmap2D* costmap, double potentialScale, double gainScale, double minFrontierSize);
 
         std::vector<Frontier> searchFrom(const geometry_msgs::Point& position);
 
@@ -52,6 +57,14 @@ namespace frontier_exploration {
         size_t _sizeX, _sizeY;
         double _potentialScale, _gainScale;
         double _minFrontierSize;
+        bool objectDetected;
+        ros::Subscriber objectDetectedSub;
+
+        void objectDetectedCallback(const std_msgs::Bool::ConstPtr& msg);
     };
 } // namespace frontier_exploration
-#endif
+
+#endif // FRONTIER_SEARCH_H_
+
+
+

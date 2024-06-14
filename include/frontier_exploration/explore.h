@@ -10,6 +10,7 @@
 #include <move_base_msgs/MoveBaseAction.h>
 #include <mutex>
 #include <ros/ros.h>
+#include <std_msgs/Bool.h>
 #include <string>
 #include <vector>
 #include <visualization_msgs/MarkerArray.h>
