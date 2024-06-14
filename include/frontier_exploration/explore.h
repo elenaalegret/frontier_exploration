@@ -10,11 +10,12 @@
 #include <move_base_msgs/MoveBaseAction.h>
 #include <mutex>
 #include <ros/ros.h>
-#include <std_msgs/Bool.h>
 #include <string>
 #include <vector>
 #include <visualization_msgs/MarkerArray.h>
 #include <std_srvs/Empty.h>
+#include <std_msgs/Bool.h> // Per llegir el missatge bool
+
 
 namespace frontier_exploration {
     class Explore
@@ -40,6 +41,7 @@ namespace frontier_exploration {
         bool onExplorationStart(std_srvs::Empty::Request &req, std_srvs::Empty::Response &res);
         bool onExplorationAbort(std_srvs::Empty::Request &req, std_srvs::Empty::Response &res);
 
+        void objectDetectedCallback(const std_msgs::Bool::ConstPtr& msg); // Callback per llegir els missatges
     private:
         ros::NodeHandle* _pnh;
         ros::NodeHandle* _nh;
@@ -58,6 +60,9 @@ namespace frontier_exploration {
         geometry_msgs::Point _prevGoal;
         double _prevDistance;
         ros::Time _lastProgress;
+
+        ros::Subscriber _objectDetectedSub; // Nova variable
+        bool _objectDetected; // Nova línia
 
         // parameters
         double _plannerFrequency;

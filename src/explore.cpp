@@ -17,6 +17,7 @@ namespace frontier_exploration {
         _gainScale(1.0),
         _visualize(false),
         _active(false),
+        _objectDetected(false), // Iniciem variable a False
         _search{}
     {
         double timeout;
@@ -51,9 +52,21 @@ namespace frontier_exploration {
         _explorationTimer = _nh->createTimer(ros::Duration(1. / _plannerFrequency),
                                              [this](const ros::TimerEvent&) { makePlan(); });
         _active = true;
+
+        _objectDetectedSub = _nh->subscribe("/object_detected", 10, &Explore::objectDetectedCallback, this); // Inicializar subscriber
     }
 
     Explore::~Explore() { stop(); }
+
+    void Explore::objectDetectedCallback(const std_msgs::Bool::ConstPtr& msg)
+    {
+        _objectDetected = msg->data;
+        if (_objectDetected)
+        {
+            ROS_INFO("Object detected, stopping exploration.");
+            stop(); // Detenim la exploració
+        }
+    }
 
     void Explore::visualizeFrontiers(const std::vector<Frontier>& frontiers)
     {
@@ -118,7 +131,7 @@ namespace frontier_exploration {
 
     void Explore::makePlan()
     {
-        if (!_active)
+        if (!_active || _objectDetected) // Afegim verificacio de deteccio de l'objecte
             return;
         // get current robot pose
         auto pose = _costmapClient.getRobotPose();
