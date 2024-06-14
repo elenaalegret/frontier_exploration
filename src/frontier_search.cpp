@@ -1,41 +1,32 @@
 #include "frontier_exploration/frontier_search.h"
+
 #include "frontier_exploration/costmap_tools.h"
+
 #include <costmap_2d/cost_values.h>
 #include <costmap_2d/costmap_2d.h>
 #include <geometry_msgs/Point.h>
-#include <ros/ros.h>
-#include <std_msgs/Bool.h>
 #include <mutex>
 
 namespace frontier_exploration {
-
     using costmap_2d::FREE_SPACE;
     using costmap_2d::LETHAL_OBSTACLE;
     using costmap_2d::NO_INFORMATION;
 
-    FrontierSearch::FrontierSearch(costmap_2d::Costmap2D* costmap, double potentialScale, double gainScale, double minFrontierSize) :
+    FrontierSearch::FrontierSearch(costmap_2d::Costmap2D* costmap, double potentialScale,
+                                   double gainScale, double minFrontierSize) :
         _costmap(costmap),
         _potentialScale(potentialScale),
         _gainScale(gainScale),
         _minFrontierSize(minFrontierSize),
         _map(nullptr),
-        _sizeX(0),
-        _sizeY(0),
-        objectDetected(false) // Inicializar objectDetected aquí
+        _sizeX{},
+        _sizeY{}
     {
-        // Inicializar el nodo ROS si no está inicializado ya
-        ros::NodeHandle nh;
-
-        // Suscribirse al tema /object_detected
-        objectDetectedSub = nh.subscribe("/object_detected", 1, &FrontierSearch::objectDetectedCallback, this);
-    
-        ROS_INFO("FrontierSearch initialized");
-
     }
-         
+
     std::vector<Frontier> FrontierSearch::searchFrom(const geometry_msgs::Point& position)
     {
-        ROS_INFO("Starting searchFrom with position: (%f, %f)", position.x, position.y);
+
         uint mx, my;
         if (!_costmap->worldToMap(position.x, position.y, mx, my))
         {
@@ -63,8 +54,7 @@ namespace frontier_exploration {
         if (nearestCell(clear, pos, FREE_SPACE, *_costmap))
         {
             bfs.push(clear);
-        }
-        else
+        } else
         {
             bfs.push(pos);
             ROS_WARN("Could not find nearby clear cell to start search");
@@ -72,8 +62,7 @@ namespace frontier_exploration {
 
         cellStates[bfs.front()] = MAP_OPEN;
 
-        //while (!bfs.empty() && !objectDetected)
-        while (!objectDetected)
+        while (!bfs.empty())
         {
             size_t p = bfs.front();
             bfs.pop();
@@ -83,13 +72,16 @@ namespace frontier_exploration {
 
             if (isFrontierCell(p))
             {
+                // If we encountered a frontier cell, we run another bfs (inner BFS) starting from
+                // this frontier cell to extract the complete frontier it is a part of. By keeping
+                // track of the cell state we make sure no frontier cell is assigned to multiple frontiers
                 Frontier newFrontier = buildFrontier(p, pos, cellStates);
+                // Threshold based on frontier size
                 if (newFrontier.size * _costmap->getResolution() >= _minFrontierSize)
                 {
                     frontierList.push_back(newFrontier);
                 }
             }
-
             // Iterate over neighbours of current point
             for (auto nbr : nhood8(p, *_costmap))
             {
@@ -98,7 +90,6 @@ namespace frontier_exploration {
                 bool hasFreeNeighbour =
                     std::any_of(nHood.begin(), nHood.end(),
                                 [&map = this->_map](auto idx) { return map[idx] == FREE_SPACE; });
-
                 // Include neighbour in search iff it has a free neighbour
                 if (cellStates[nbr] != MAP_OPEN && cellStates[nbr] != MAP_CLOSED &&
                     hasFreeNeighbour)
@@ -108,10 +99,6 @@ namespace frontier_exploration {
                 }
             }
             cellStates[p] = MAP_CLOSED;
-
-            // Consultar el paquete de detección de objetos
-            ros::spinOnce(); // Procesar callbacks de ROS
-            ROS_INFO("Checking object detection status: %s", objectDetected ? "true" : "false");
         }
 
         // set costs of frontiers
@@ -119,7 +106,6 @@ namespace frontier_exploration {
         {
             frontier.cost = frontierCost(frontier);
         }
-
         // sort frontiers based on cost
         std::sort(frontierList.begin(), frontierList.end(),
                   [](const Frontier& f1, const Frontier& f2) { return f1.cost < f2.cost; });
@@ -127,7 +113,8 @@ namespace frontier_exploration {
         return frontierList;
     }
 
-    Frontier FrontierSearch::buildFrontier(size_t initialCell, size_t reference, std::vector<CellState>& cellStates)
+    Frontier FrontierSearch::buildFrontier(size_t initialCell, size_t reference,
+                                           std::vector<CellState>& cellStates)
     {
         Frontier output;
         std::vector<size_t> frontierIndices;
@@ -193,7 +180,7 @@ namespace frontier_exploration {
                 frontierIndices.push_back(p);
                 for (auto nbr : nhood8(p, *_costmap))
                 {
-                    if (cellStates[nbr] == FRONTIER_OPEN || cellStates[nbr] == UNCHECKED)
+                    if (cellStates[nbr] == MAP_OPEN || cellStates[nbr] == UNCHECKED)
                     {
                         bfs.push(nbr);
                         cellStates[nbr] = FRONTIER_OPEN;
@@ -227,13 +214,5 @@ namespace frontier_exploration {
         return (_potentialScale * frontier.minDistance * _costmap->getResolution()) -
                (_gainScale * frontier.size * _costmap->getResolution());
     }
-
-    void FrontierSearch::objectDetectedCallback(const std_msgs::Bool::ConstPtr& msg)
-    {
-        objectDetected = msg->data;
-        ROS_INFO("Object detection status updated: %s", objectDetected ? "true" : "false");
-    }
-    
-
 } // namespace frontier_exploration
 
