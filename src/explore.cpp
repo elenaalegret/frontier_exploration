@@ -18,6 +18,7 @@ namespace frontier_exploration {
         _visualize(false),
         _active(false),
         _objectDetected(false), // Iniciem variable a False
+        //_warningDetected(false), // Iniciem variable a False
         _search{}
     {
         double timeout;
@@ -54,6 +55,8 @@ namespace frontier_exploration {
         _active = true;
 
         _objectDetectedSub = _nh->subscribe("/object_detected", 10, &Explore::objectDetectedCallback, this); // Inicializar subscriber
+        _warningDetectedSub = _nh->subscribe("/warning_detected", 10, &Explore::objectWarningCallback, this); // Inicializar subscriber
+
     }
 
     Explore::~Explore() { stop(); }
@@ -64,9 +67,24 @@ namespace frontier_exploration {
         if (_objectDetected)
         {
             ROS_INFO("Object detected, stopping exploration.");
-            stop(); // Detenim la exploració
+            stop(); 
+            return;// Detenim la exploració
+        }
+
+    }
+
+
+    void Explore::objectWarningCallback(const std_msgs::Bool::ConstPtr& msg)
+    {
+        _warningDetected = msg->data;
+        if (_warningDetected)
+        {
+            ROS_INFO("Warning detected, strating again the exploration.");
+            start(); 
         }
     }
+
+
 
     void Explore::visualizeFrontiers(const std::vector<Frontier>& frontiers)
     {
