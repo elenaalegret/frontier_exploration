@@ -6,6 +6,13 @@ Thread safe frontier exploration package based on fast and efficient Wavefront F
 
 Use `rosdep` to resolve ROS dependencies
 
+
+## Integration Changes
+
+Modifications have been made to integrate two new subscribers for the `explore_and_find` package. 
+These changes allow the `frontier_exploration` package to work seamlessly with the `explore_and_find` node, enhancing functionality for external control and object detection. For more details, visit our [explore_and_find repository](https://github.com/elenaalegret/explore_and_find).
+
+
 ## References
 
 ```
